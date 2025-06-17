@@ -1,0 +1,39 @@
+# Core dependencies
+openai
+# Web framework
+fastapi
+uvicorn
+streamlit
+python-multipart
+requests
+
+# Authentication and security
+python-dotenv
+eth-account
+eth-keys
+pyjwt
+cryptography
+pydantic
+pydantic-settings
+
+# Data and ML
+numpy
+scikit-learn
+# Using a pre-built wheel for tiktoken
+--find-links https://github.com/openai/tiktoken/releases/download/v0.5.1/tiktoken-0.5.1-cp312-cp312-macosx_11_0_arm64.whl
+tiktoken
+
+# Utilities
+redis
+tenacity
+typing-extensions
+aiohttp
+dataclasses-json
+jsonpatch
+PyYAML
+SQLAlchemy
+
+# Build dependencies
+wheel>=0.42.0,<0.43.0
+setuptools>=69.0.0,<70.0.0
+rust 
