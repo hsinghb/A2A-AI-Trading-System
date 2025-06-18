@@ -115,11 +115,27 @@ class RiskAgent(BaseAgent):
                             'message': 'Token verification failed'
                         }
                     
+                    # Debug: Log what we received
+                    logger.info(f"[RiskAgent] Verified data keys: {list(verified_data.keys())}")
+                    logger.info(f"[RiskAgent] Trading analysis type: {type(verified_data.get('trading_analysis'))}")
+                    logger.info(f"[RiskAgent] Market conditions type: {type(verified_data.get('market_conditions'))}")
+                    
+                    # Extract data with fallbacks
+                    trading_analysis = verified_data.get('trading_analysis', {})
+                    market_conditions = verified_data.get('market_conditions', {})
+                    
+                    # If trading_analysis is empty, try to get it from the message directly
+                    if not trading_analysis and 'trading_analysis' in message:
+                        trading_analysis = message['trading_analysis']
+                        logger.info(f"[RiskAgent] Using trading_analysis from message")
+                    
+                    # If market_conditions is empty, try to get it from the message directly
+                    if not market_conditions and 'market_conditions' in message:
+                        market_conditions = message['market_conditions']
+                        logger.info(f"[RiskAgent] Using market_conditions from message")
+                    
                     # Evaluate risk
-                    evaluation = await self._evaluate_risk(
-                        verified_data.get('trading_analysis', {}),
-                        verified_data.get('market_conditions', {})
-                    )
+                    evaluation = await self._evaluate_risk(trading_analysis, market_conditions)
                     
                     # End session after ask is complete
                     self.end_ask(ask_id)
@@ -184,6 +200,10 @@ class RiskAgent(BaseAgent):
             if not market_conditions:
                 market_conditions = {}
             
+            logger.info(f"[RiskAgent] _evaluate_risk called with:")
+            logger.info(f"[RiskAgent] trading_analysis keys: {list(trading_analysis.keys()) if isinstance(trading_analysis, dict) else 'not a dict'}")
+            logger.info(f"[RiskAgent] market_conditions keys: {list(market_conditions.keys()) if isinstance(market_conditions, dict) else 'not a dict'}")
+            
             # Extract assets from trading analysis if available
             assets = []
             if isinstance(trading_analysis, dict):
@@ -205,8 +225,13 @@ class RiskAgent(BaseAgent):
                 "take_profit": 0.1
             }
             
+            logger.info(f"[RiskAgent] Created strategy: {strategy}")
+            logger.info(f"[RiskAgent] About to call risk_tool._arun with strategy and market_conditions")
+            
             # Use the enhanced risk assessment tool
             risk_assessment_json = await self.risk_tool._arun(strategy, market_conditions)
+            
+            logger.info(f"[RiskAgent] Risk tool returned: {risk_assessment_json[:200]}...")
             
             try:
                 import json

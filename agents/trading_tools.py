@@ -15,6 +15,8 @@ class MarketAnalysisTool(BaseTool):
     
     def _run(self, assets: List[str], timeframe: str = "1d") -> str:
         """Analyze market conditions for given assets using statistical methods."""
+        import json  # Add import to top of function
+        
         try:
             analysis_results = {}
             
@@ -154,7 +156,27 @@ class RiskAssessmentTool(BaseTool):
     
     def _run(self, strategy: Dict[str, Any] = None, market_conditions: Dict[str, Any] = None) -> str:
         """Assess risk for a trading strategy using advanced risk metrics."""
+        import json  # Move import to top of function
+        
         try:
+            # Handle case where arguments might be passed differently by LangChain
+            if strategy is None and market_conditions is None:
+                # Called without arguments, use defaults
+                strategy = {"assets": ["BTC", "ETH"], "position_size": 0.1, "stop_loss": 0.05, "take_profit": 0.1}
+                market_conditions = {}
+            elif isinstance(strategy, str):
+                # Called with a single string argument (might be from LangChain)
+                try:
+                    strategy = json.loads(strategy)
+                    market_conditions = {}
+                except:
+                    strategy = {"assets": ["BTC", "ETH"], "position_size": 0.1, "stop_loss": 0.05, "take_profit": 0.1}
+                    market_conditions = {}
+            elif strategy is None:
+                strategy = {"assets": ["BTC", "ETH"], "position_size": 0.1, "stop_loss": 0.05, "take_profit": 0.1}
+            elif market_conditions is None:
+                market_conditions = {}
+            
             # Handle case where arguments are missing or empty
             if not strategy:
                 strategy = {}
@@ -288,6 +310,26 @@ class RiskAssessmentTool(BaseTool):
     
     async def _arun(self, strategy: Dict[str, Any] = None, market_conditions: Dict[str, Any] = None) -> str:
         """Async implementation of risk assessment with flexible input handling."""
+        import json  # Move import to top of function
+        
+        # Handle case where arguments might be passed differently by LangChain
+        if strategy is None and market_conditions is None:
+            # Called without arguments, use defaults
+            strategy = {"assets": ["BTC", "ETH"], "position_size": 0.1, "stop_loss": 0.05, "take_profit": 0.1}
+            market_conditions = {}
+        elif isinstance(strategy, str):
+            # Called with a single string argument (might be from LangChain)
+            try:
+                strategy = json.loads(strategy)
+                market_conditions = {}
+            except:
+                strategy = {"assets": ["BTC", "ETH"], "position_size": 0.1, "stop_loss": 0.05, "take_profit": 0.1}
+                market_conditions = {}
+        elif strategy is None:
+            strategy = {"assets": ["BTC", "ETH"], "position_size": 0.1, "stop_loss": 0.05, "take_profit": 0.1}
+        elif market_conditions is None:
+            market_conditions = {}
+        
         return self._run(strategy, market_conditions)
 
 class TradeExecutionTool(BaseTool):
@@ -296,6 +338,8 @@ class TradeExecutionTool(BaseTool):
     
     def _run(self, strategy: Dict[str, Any], risk_assessment: Dict[str, Any]) -> str:
         """Execute trades based on strategy and risk assessment."""
+        import json  # Add import to top of function
+        
         # This would typically connect to a trading platform API
         # For now, return mock execution with enhanced analysis
         execution = {
@@ -335,6 +379,8 @@ class PortfolioAnalysisTool(BaseTool):
     
     def _run(self, portfolio_id: str) -> str:
         """Analyze portfolio performance with advanced metrics."""
+        import json  # Add import to top of function
+        
         try:
             # Mock portfolio data - in real implementation, this would come from a database
             portfolio_data = {

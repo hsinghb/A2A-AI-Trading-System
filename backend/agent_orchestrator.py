@@ -313,13 +313,22 @@ class TradingAgentOrchestrator:
                 "public_key": self.admin_did
             })
             
-            if risk_response.get("status") != "success":
-                return {"status": "error", "message": risk_response.get("message")}
+            # Check if risk response has evaluation data, even if status is not success
+            risk_evaluation = {}
+            if risk_response.get("status") == "success":
+                risk_evaluation = risk_response.get("evaluation", {})
+            elif risk_response.get("evaluation"):
+                # If we have evaluation data even with error status, use it
+                risk_evaluation = risk_response.get("evaluation", {})
+                self.logger.warning(f"Risk agent returned error status but provided evaluation data: {risk_response.get('message', 'Unknown error')}")
+            else:
+                # Only return error if we have no evaluation data at all
+                return {"status": "error", "message": risk_response.get("message", "Risk evaluation failed")}
             
             # Update session state
             self.sessions[session_id].analysis_results = {
                 "expert_analysis": expert_response.get("analysis", {}),
-                "risk_evaluation": risk_response.get("evaluation", {}),
+                "risk_evaluation": risk_evaluation,
                 "timestamp": datetime.now().isoformat()
             }
             self.sessions[session_id].status = "completed"
@@ -333,7 +342,17 @@ class TradingAgentOrchestrator:
             
         except Exception as e:
             self.logger.error(f"Error processing trading request: {str(e)}")
-            return {"status": "error", "message": str(e)}
+            # Always include any partial analysis results if available
+            partial_results = {}
+            if session_id in self.sessions and self.sessions[session_id].analysis_results:
+                partial_results = self.sessions[session_id].analysis_results
+            
+            return {
+                "status": "error",
+                "message": str(e),
+                "result": partial_results,
+                "timestamp": datetime.now().isoformat()
+            }
 
     async def get_session_status(self, session_id: str) -> Dict[str, Any]:
         """Get the status of a trading session."""
