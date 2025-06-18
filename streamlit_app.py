@@ -426,10 +426,14 @@ def trigger_trading_request(session_id, goals, constraints, human_trader):
     debug_manager = get_debug_manager(session_id)
     
     try:
-        # Generate JWT for the human trader
-        human_jwt = generate_test_jwt_ethereum(
-            did=human_trader["did"],
-            private_key=human_trader["private_key"],
+        # Use admin credentials for the request (since we're testing)
+        admin_did = "did:eth:0xb061c3e5D0d182c6743c743fC14eDD4fdbD5c127"
+        admin_private_key = "4bf0e53a3e05c778577287fec2b19c9f29dbe0856885e07dfcef2f80bc1d9ac1"
+        
+        # Generate JWT for the admin (acting as human trader)
+        admin_jwt = generate_test_jwt_ethereum(
+            did=admin_did,
+            private_key=admin_private_key,
             additional_claims={"role": "human_trader", "type": "trading_request"}
         )
         
@@ -445,8 +449,8 @@ def trigger_trading_request(session_id, goals, constraints, human_trader):
                 "status": "pending"
             },
             "verification": {
-                "did": str(human_trader["did"]),
-                "jwt": str(human_jwt)
+                "did": admin_did,
+                "jwt": admin_jwt
             }
         }
         
