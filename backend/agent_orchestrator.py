@@ -6,9 +6,9 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import os
 import logging
+import json
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
-import json
 import uuid
 from eth_account import Account
 
@@ -233,6 +233,24 @@ class TradingAgentOrchestrator:
             human_trader_did = verification.get('did')
             human_token = verification.get('jwt')
             
+            # COMPREHENSIVE LOGGING: Log the orchestrator processing
+            print("=" * 80)
+            print("🎯 ORCHESTRATOR: PROCESSING TRADING REQUEST")
+            print("=" * 80)
+            print(f"Session ID: {session_id}")
+            print(f"Human Trader DID: {human_trader_did}")
+            print(f"Request: {json.dumps(request, indent=2)}")
+            
+            # Extract and log user assets
+            goals = request.get("goals", {})
+            constraints = request.get("constraints", {})
+            user_assets = goals.get("assets", [])
+            allowed_assets = constraints.get("allowed_assets", [])
+            
+            print(f"User Assets from Goals: {user_assets}")
+            print(f"Allowed Assets from Constraints: {allowed_assets}")
+            print("=" * 80)
+            
             if not human_trader_did or not human_token:
                 return {"status": "error", "message": "Missing trader DID or token"}
             
@@ -267,8 +285,11 @@ class TradingAgentOrchestrator:
                 }
             )
             
-            # Process with expert agent
-            expert_response = await self.agents[expert_did].process_message({
+            # COMPREHENSIVE LOGGING: Log expert agent request
+            print("=" * 80)
+            print("🧠 ORCHESTRATOR: SENDING TO EXPERT AGENT")
+            print("=" * 80)
+            expert_request = {
                 "type": "trading_request",
                 "goals": request.get("goals", {}),
                 "constraints": request.get("constraints", {}),
@@ -277,7 +298,21 @@ class TradingAgentOrchestrator:
                 "sender_did": self.admin_did,
                 "token": expert_token,
                 "public_key": self.admin_did
-            })
+            }
+            print(f"Expert Request: {json.dumps(expert_request, indent=2)}")
+            print("=" * 80)
+            
+            # Process with expert agent
+            expert_response = await self.agents[expert_did].process_message(expert_request)
+            
+            # COMPREHENSIVE LOGGING: Log expert agent response
+            print("=" * 80)
+            print("🧠 ORCHESTRATOR: EXPERT AGENT RESPONSE")
+            print("=" * 80)
+            print(f"Status: {expert_response.get('status')}")
+            print(f"Message: {expert_response.get('message', 'No message')}")
+            print(f"Analysis: {json.dumps(expert_response.get('analysis', {}), indent=2)}")
+            print("=" * 80)
             
             if expert_response.get("status") != "success":
                 return {"status": "error", "message": expert_response.get("message")}
@@ -301,8 +336,11 @@ class TradingAgentOrchestrator:
                 }
             )
             
-            # Process with risk agent
-            risk_response = await self.agents[risk_did].process_message({
+            # COMPREHENSIVE LOGGING: Log risk agent request
+            print("=" * 80)
+            print("⚠️ ORCHESTRATOR: SENDING TO RISK AGENT")
+            print("=" * 80)
+            risk_request = {
                 "type": "risk_evaluation_request",
                 "trading_analysis": expert_response.get("analysis", {}),
                 "market_conditions": expert_response.get("analysis", {}),
@@ -311,7 +349,21 @@ class TradingAgentOrchestrator:
                 "sender_did": self.admin_did,
                 "token": risk_token,
                 "public_key": self.admin_did
-            })
+            }
+            print(f"Risk Request: {json.dumps(risk_request, indent=2)}")
+            print("=" * 80)
+            
+            # Process with risk agent
+            risk_response = await self.agents[risk_did].process_message(risk_request)
+            
+            # COMPREHENSIVE LOGGING: Log risk agent response
+            print("=" * 80)
+            print("⚠️ ORCHESTRATOR: RISK AGENT RESPONSE")
+            print("=" * 80)
+            print(f"Status: {risk_response.get('status')}")
+            print(f"Message: {risk_response.get('message', 'No message')}")
+            print(f"Evaluation: {json.dumps(risk_response.get('evaluation', {}), indent=2)}")
+            print("=" * 80)
             
             # Check if risk response has evaluation data, even if status is not success
             risk_evaluation = {}
@@ -333,12 +385,20 @@ class TradingAgentOrchestrator:
             }
             self.sessions[session_id].status = "completed"
             
-            return {
+            # COMPREHENSIVE LOGGING: Log final result
+            print("=" * 80)
+            print("✅ ORCHESTRATOR: FINAL RESULT")
+            print("=" * 80)
+            final_result = {
                 "status": "success",
                 "session_id": session_id,
                 "result": self.sessions[session_id].analysis_results,
                 "timestamp": datetime.now().isoformat()
             }
+            print(f"Final Result: {json.dumps(final_result, indent=2)}")
+            print("=" * 80)
+            
+            return final_result
             
         except Exception as e:
             self.logger.error(f"Error processing trading request: {str(e)}")

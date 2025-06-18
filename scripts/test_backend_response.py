@@ -48,20 +48,21 @@ def test_backend_response():
             "goals": {
                 "target_return": 0.1,
                 "time_horizon": "1d",
-                "risk_tolerance": "moderate"
+                "risk_tolerance": "moderate",
+                "assets": ["AAPL", "MSFT"]
             },
             "constraints": {
                 "max_position_size": 100000,
                 "max_drawdown": 0.05,
-                "allowed_assets": ["BTC", "ETH"],
+                "allowed_assets": ["AAPL", "MSFT"],
                 "min_liquidity": 1000000,
                 "max_slippage": 0.01
             },
             "portfolio": {
                 "total_value": 100000,
                 "positions": {
-                    "BTC": {"allocation": 0.25, "value": 25000},
-                    "ETH": {"allocation": 0.75, "value": 75000}
+                    "AAPL": {"allocation": 0.5, "value": 50000},
+                    "MSFT": {"allocation": 0.5, "value": 50000}
                 }
             }
         },
@@ -94,7 +95,7 @@ def test_backend_response():
                 
                 # Check for market data
                 if isinstance(analysis, dict):
-                    if "BTC" in analysis or "ETH" in analysis:
+                    if "AAPL" in analysis or "MSFT" in analysis:
                         print("✅ Found direct asset data in analysis")
                     elif "market_analysis" in analysis:
                         print("✅ Found market_analysis field")

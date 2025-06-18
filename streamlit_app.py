@@ -965,6 +965,19 @@ def trigger_trading_request(session_id, goals, constraints, human_trader):
             }
         }
         
+        # COMPREHENSIVE LOGGING: Log the exact request being sent
+        print("=" * 80)
+        print("🚀 UI: SENDING TRADING REQUEST TO BACKEND")
+        print("=" * 80)
+        print(f"Session ID: {session_id}")
+        print(f"Goals: {json.dumps(goals, indent=2) if goals else 'None'}")
+        print(f"Constraints: {json.dumps(constraints, indent=2) if constraints else 'None'}")
+        print(f"User Assets: {goals.get('assets', []) if goals else 'None'}")
+        print(f"Allowed Assets: {constraints.get('allowed_assets', []) if constraints else 'None'}")
+        print("Full Request Payload:")
+        print(json.dumps(request_payload, indent=2))
+        print("=" * 80)
+        
         # Log the request
         debug_manager.log_request("/trading/process", request_payload)
         
@@ -984,6 +997,14 @@ def trigger_trading_request(session_id, goals, constraints, human_trader):
         
         # Log the response
         debug_manager.log_response("/trading/process", response.status_code, response_data)
+        
+        # COMPREHENSIVE LOGGING: Log the backend response
+        print("=" * 80)
+        print("📥 UI: RECEIVED BACKEND RESPONSE")
+        print("=" * 80)
+        print(f"Status Code: {response.status_code}")
+        print(f"Response: {json.dumps(response.json() if response.ok else response.text, indent=2)}")
+        print("=" * 80)
         
         # Handle the response
         if response.status_code == 200:

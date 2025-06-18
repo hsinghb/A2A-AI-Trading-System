@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import json
 
 # Add project root to Python path in a more reliable way
 project_root = Path(__file__).parent.parent
@@ -116,6 +117,26 @@ async def process_trading(request: TradingProcessRequest):
     """Process a trading request with DID verification and agent orchestration"""
     try:
         logger.info(f"Received trading request for session {request.session_id}")
+        
+        # COMPREHENSIVE LOGGING: Log the exact request received from UI
+        print("=" * 80)
+        print("🔍 BACKEND API: RECEIVED TRADING REQUEST")
+        print("=" * 80)
+        print(f"Session ID: {request.session_id}")
+        print(f"Request Data: {json.dumps(request.dict(), indent=2)}")
+        
+        # Extract and log user assets
+        goals = request.request.get("goals", {})
+        constraints = request.request.get("constraints", {})
+        user_assets = goals.get("assets", [])
+        allowed_assets = constraints.get("allowed_assets", [])
+        
+        print(f"User Assets from Goals: {user_assets}")
+        print(f"Allowed Assets from Constraints: {allowed_assets}")
+        print(f"Expert Agent DID: {request.request.get('expert_agent_did')}")
+        print(f"Risk Agent DID: {request.request.get('risk_agent_did')}")
+        print("=" * 80)
+        
         logger.debug(f"Request data: {request.dict()}")
         now_ts = datetime.utcnow().isoformat()
         
@@ -159,6 +180,15 @@ async def process_trading(request: TradingProcessRequest):
                 verification=request.verification
             )
             logger.info(f"Orchestrator response: {result}")
+            
+            # COMPREHENSIVE LOGGING: Log the orchestrator response
+            print("=" * 80)
+            print("🔄 BACKEND API: ORCHESTRATOR RESPONSE")
+            print("=" * 80)
+            print(f"Status: {result.get('status')}")
+            print(f"Message: {result.get('message', 'No message')}")
+            print(f"Result: {json.dumps(result.get('result', {}), indent=2)}")
+            print("=" * 80)
             
             if result.get("status") == "error":
                 logger.error(f"Orchestrator returned error: {result.get('error', 'Unknown error')}")

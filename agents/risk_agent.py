@@ -10,6 +10,7 @@ from backend.agent_registry import agent_registry, AgentRole
 from backend.did_registry import did_registry
 import os
 from agents.trading_tools import RiskAssessmentTool
+import json
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -194,6 +195,13 @@ class RiskAgent(BaseAgent):
     async def _evaluate_risk(self, trading_analysis: Dict[str, Any], market_conditions: Dict[str, Any]) -> Dict[str, Any]:
         """Evaluate the risk of a trading request using the enhanced risk assessment tool"""
         try:
+            # COMPREHENSIVE LOGGING: Log the risk agent processing
+            print("=" * 80)
+            print("⚠️ RISK AGENT: EVALUATING RISK")
+            print("=" * 80)
+            print(f"Trading Analysis: {json.dumps(trading_analysis, indent=2)}")
+            print(f"Market Conditions: {json.dumps(market_conditions, indent=2)}")
+            
             # Handle case where inputs might be None or empty
             if not trading_analysis:
                 trading_analysis = {}
@@ -204,51 +212,95 @@ class RiskAgent(BaseAgent):
             logger.info(f"[RiskAgent] trading_analysis keys: {list(trading_analysis.keys()) if isinstance(trading_analysis, dict) else 'not a dict'}")
             logger.info(f"[RiskAgent] market_conditions keys: {list(market_conditions.keys()) if isinstance(market_conditions, dict) else 'not a dict'}")
             
-            # Extract assets from trading analysis if available
+            # Extract assets from multiple possible locations in the trading analysis
             assets = []
-            if isinstance(trading_analysis, dict):
-                # Look for assets in various possible locations
-                if "market_analysis" in trading_analysis:
-                    market_data = trading_analysis["market_analysis"]
-                    if isinstance(market_data, dict):
-                        assets = list(market_data.keys())
-                elif "assets" in trading_analysis:
-                    assets = trading_analysis["assets"]
-                elif "goals" in trading_analysis and isinstance(trading_analysis["goals"], dict):
-                    assets = trading_analysis["goals"].get("assets", [])
             
-            # Create a proper strategy structure
-            strategy = {
-                "assets": assets if assets else ["BTC", "ETH"],
-                "position_size": 0.1,
-                "stop_loss": 0.05,
-                "take_profit": 0.1
+            # Try to get assets from strategy
+            strategy = trading_analysis.get('strategy', {})
+            if isinstance(strategy, dict):
+                strategy_assets = strategy.get('assets', [])
+                if strategy_assets:
+                    assets = strategy_assets
+            
+            # If no assets in strategy, try market analysis
+            if not assets:
+                market_analysis = trading_analysis.get('market_analysis', {})
+                if isinstance(market_analysis, dict):
+                    assets = list(market_analysis.keys())
+            
+            # If still no assets, try goals
+            if not assets:
+                goals = trading_analysis.get('goals', {})
+                if isinstance(goals, dict):
+                    goals_assets = goals.get('assets', [])
+                    if goals_assets:
+                        assets = goals_assets
+            
+            # Ensure assets is a list
+            if not isinstance(assets, list):
+                if isinstance(assets, str):
+                    assets = [assets]
+                else:
+                    assets = []
+            
+            print(f"Extracted Assets: {assets}")
+            
+            # Create strategy with extracted assets
+            strategy_for_risk = {
+                "assets": assets,
+                "position_size": strategy.get('position_size', 0.1) if isinstance(strategy, dict) else 0.1,
+                "stop_loss": strategy.get('stop_loss', 0.05) if isinstance(strategy, dict) else 0.05,
+                "take_profit": strategy.get('take_profit', 0.1) if isinstance(strategy, dict) else 0.1
             }
             
-            logger.info(f"[RiskAgent] Created strategy: {strategy}")
-            logger.info(f"[RiskAgent] About to call risk_tool._arun with strategy and market_conditions")
+            print(f"Strategy for Risk Assessment: {json.dumps(strategy_for_risk, indent=2)}")
+            print("=" * 80)
             
-            # Use the enhanced risk assessment tool
-            risk_assessment_json = await self.risk_tool._arun(strategy, market_conditions)
+            logger.info(f"[RiskAgent] Extracted assets: {assets}")
+            logger.info(f"[RiskAgent] Strategy for risk assessment: {strategy_for_risk}")
             
-            logger.info(f"[RiskAgent] Risk tool returned: {risk_assessment_json[:200]}...")
+            # COMPREHENSIVE LOGGING: Log risk tool call
+            print("=" * 80)
+            print("⚠️ RISK AGENT: CALLING RISK TOOL")
+            print("=" * 80)
+            print(f"Calling risk tool with strategy: {json.dumps(strategy_for_risk, indent=2)}")
+            print(f"Market conditions: {json.dumps(market_conditions, indent=2)}")
+            print("=" * 80)
             
+            # Call the risk assessment tool with the extracted assets
+            risk_assessment_json = await self.risk_tool._arun(strategy_for_risk, market_conditions)
+            
+            # COMPREHENSIVE LOGGING: Log risk tool response
+            print("=" * 80)
+            print("⚠️ RISK AGENT: RISK TOOL RESPONSE")
+            print("=" * 80)
+            print(f"Risk Assessment JSON: {risk_assessment_json}")
+            print("=" * 80)
+            
+            # Parse the risk assessment
             try:
-                import json
                 risk_assessment = json.loads(risk_assessment_json)
             except Exception as e:
-                logger.error(f"Error parsing risk assessment JSON: {e}")
-                risk_assessment = {"error": str(e), "raw_response": risk_assessment_json}
-
+                logger.error(f"[RiskAgent] Error parsing risk assessment JSON: {e}")
+                risk_assessment = {"error": str(e)}
+            
+            # COMPREHENSIVE LOGGING: Log final risk assessment
+            print("=" * 80)
+            print("⚠️ RISK AGENT: FINAL RISK ASSESSMENT")
+            print("=" * 80)
+            print(f"Final Risk Assessment: {json.dumps(risk_assessment, indent=2)}")
+            print("=" * 80)
+            
             evaluation = {
                 "risk_assessment": risk_assessment,
-                "strategy_used": strategy,
+                "strategy_used": strategy_for_risk,
                 "timestamp": datetime.utcnow().isoformat()
             }
             return evaluation
+            
         except Exception as e:
-            logger.error(f"Error evaluating risk: {e}", exc_info=True)
-            # Return a fallback evaluation
+            logger.error(f"[RiskAgent] Error in _evaluate_risk: {str(e)}")
+            print(f"❌ RISK AGENT ERROR: {str(e)}")
             return {
                 "risk_assessment": {
                     "error": str(e),

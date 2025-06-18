@@ -14,85 +14,129 @@ class MarketAnalysisTool(BaseTool):
     description: str = "Analyze market conditions and trends for given assets using quantitative methods"
     
     def _run(self, assets: List[str], timeframe: str = "1d") -> str:
-        """Analyze market conditions for given assets using statistical methods."""
-        import json  # Add import to top of function
+        """Analyze market conditions and trends for given assets."""
+        import json  # Move import to top of function
         
         try:
-            analysis_results = {}
+            # COMPREHENSIVE LOGGING: Log the market analysis tool processing
+            print("=" * 80)
+            print("📊 MARKET TOOL: PROCESSING MARKET ANALYSIS")
+            print("=" * 80)
+            print(f"Input Assets: {assets}")
+            print(f"Input Timeframe: {timeframe}")
+            
+            # Ensure assets is a list
+            if not isinstance(assets, list):
+                if isinstance(assets, str):
+                    assets = [assets]
+                else:
+                    assets = []
+            
+            # Only fallback to BTC/ETH if no assets are provided at all
+            if not assets:
+                assets = ["BTC", "ETH"]
+            
+            print(f"Processed Assets: {assets}")
+            print("=" * 80)
+            
+            analysis = {}
             
             for asset in assets:
-                # Get market data
+                # Get historical data
                 ticker = yf.Ticker(asset)
                 hist = ticker.history(period="1y")
                 
                 if hist.empty:
-                    analysis_results[asset] = {"error": f"No data available for {asset}"}
+                    analysis[asset] = {"error": f"No data available for {asset}"}
                     continue
                 
-                # Calculate statistical metrics
+                # Calculate basic statistics
                 returns = hist['Close'].pct_change().dropna()
-                
-                # Basic statistics
-                mean_return = returns.mean()
-                std_return = returns.std()
-                skewness = stats.skew(returns)
-                kurtosis = stats.kurtosis(returns)
-                
-                # Volatility analysis
-                rolling_vol = returns.rolling(window=20).std()
-                current_vol = rolling_vol.iloc[-1]
-                vol_percentile = (rolling_vol < current_vol).mean()
-                
-                # Trend analysis
-                sma_20 = hist['Close'].rolling(window=20).mean()
-                sma_50 = hist['Close'].rolling(window=50).mean()
                 current_price = hist['Close'].iloc[-1]
+                mean_return = returns.mean()
+                volatility = returns.std()
+                skewness = returns.skew()
+                kurtosis = returns.kurtosis()
                 
-                # Technical indicators
-                rsi = self._calculate_rsi(hist['Close'])
-                macd, signal = self._calculate_macd(hist['Close'])
-                
-                # Risk metrics
+                # Calculate VaR and max drawdown
                 var_95 = np.percentile(returns, 5)
                 max_drawdown = self._calculate_max_drawdown(hist['Close'])
                 
-                analysis_results[asset] = {
+                # Technical indicators
+                rsi = self._calculate_rsi(hist['Close']).iloc[-1]
+                macd, macd_signal = self._calculate_macd(hist['Close'])
+                macd_value = macd.iloc[-1]
+                macd_signal_value = macd_signal.iloc[-1]
+                
+                # Moving averages
+                sma_20 = hist['Close'].rolling(window=20).mean().iloc[-1]
+                sma_50 = hist['Close'].rolling(window=50).mean().iloc[-1]
+                
+                # Trend analysis
+                trend_direction = "bullish" if sma_20 > sma_50 else "bearish"
+                price_vs_sma20 = "above" if current_price > sma_20 else "below"
+                
+                # Volatility analysis
+                current_volatility = returns.tail(30).std()  # Recent volatility
+                volatility_percentile = (returns < current_volatility).mean()
+                
+                if volatility_percentile < 0.25:
+                    volatility_regime = "low"
+                elif volatility_percentile < 0.75:
+                    volatility_regime = "normal"
+                else:
+                    volatility_regime = "high"
+                
+                # Generate recommendations
+                recommendations = self._generate_recommendations(
+                    mean_return, volatility, rsi, sma_20, sma_50, current_price
+                )
+                
+                analysis[asset] = {
                     "timestamp": datetime.utcnow().isoformat(),
                     "current_price": float(current_price),
                     "statistical_metrics": {
                         "mean_return": float(mean_return),
-                        "volatility": float(std_return),
+                        "volatility": float(volatility),
                         "skewness": float(skewness),
                         "kurtosis": float(kurtosis),
                         "var_95": float(var_95),
                         "max_drawdown": float(max_drawdown)
                     },
                     "trend_analysis": {
-                        "sma_20": float(sma_20.iloc[-1]),
-                        "sma_50": float(sma_50.iloc[-1]),
-                        "trend_direction": "bullish" if sma_20.iloc[-1] > sma_50.iloc[-1] else "bearish",
-                        "price_vs_sma20": "above" if current_price > sma_20.iloc[-1] else "below"
+                        "sma_20": float(sma_20),
+                        "sma_50": float(sma_50),
+                        "trend_direction": trend_direction,
+                        "price_vs_sma20": price_vs_sma20
                     },
                     "technical_indicators": {
-                        "rsi": float(rsi.iloc[-1]) if not pd.isna(rsi.iloc[-1]) else None,
-                        "macd": float(macd.iloc[-1]) if not pd.isna(macd.iloc[-1]) else None,
-                        "macd_signal": float(signal.iloc[-1]) if not pd.isna(signal.iloc[-1]) else None
+                        "rsi": float(rsi),
+                        "macd": float(macd_value),
+                        "macd_signal": float(macd_signal_value)
                     },
                     "volatility_analysis": {
-                        "current_volatility": float(current_vol),
-                        "volatility_percentile": float(vol_percentile),
-                        "volatility_regime": "high" if vol_percentile > 0.8 else "low" if vol_percentile < 0.2 else "normal"
+                        "current_volatility": float(current_volatility),
+                        "volatility_percentile": float(volatility_percentile),
+                        "volatility_regime": volatility_regime
                     },
-                    "recommendations": self._generate_recommendations(
-                        mean_return, std_return, rsi.iloc[-1], 
-                        sma_20.iloc[-1], sma_50.iloc[-1], current_price
-                    )
+                    "recommendations": recommendations
                 }
             
-            return json.dumps(analysis_results, indent=2)
+            result = json.dumps(analysis, indent=2)
+            
+            # COMPREHENSIVE LOGGING: Log the market analysis tool result
+            print("=" * 80)
+            print("📊 MARKET TOOL: MARKET ANALYSIS RESULT")
+            print("=" * 80)
+            print(f"Result: {result}")
+            print("=" * 80)
+            
+            return result
             
         except Exception as e:
-            return json.dumps({"error": f"Market analysis failed: {str(e)}"})
+            error_result = json.dumps({"error": f"Market analysis failed: {str(e)}"})
+            print(f"❌ MARKET TOOL ERROR: {str(e)}")
+            return error_result
     
     def _calculate_rsi(self, prices: pd.Series, period: int = 14) -> pd.Series:
         """Calculate Relative Strength Index."""
@@ -159,6 +203,13 @@ class RiskAssessmentTool(BaseTool):
         import json  # Move import to top of function
         
         try:
+            # COMPREHENSIVE LOGGING: Log the risk tool processing
+            print("=" * 80)
+            print("🔧 RISK TOOL: PROCESSING RISK ASSESSMENT")
+            print("=" * 80)
+            print(f"Input Strategy: {json.dumps(strategy, indent=2) if strategy else 'None'}")
+            print(f"Input Market Conditions: {json.dumps(market_conditions, indent=2) if market_conditions else 'None'}")
+            
             # Handle case where arguments might be passed differently by LangChain
             if strategy is None and market_conditions is None:
                 # Called without arguments, use defaults
@@ -184,7 +235,7 @@ class RiskAssessmentTool(BaseTool):
                 market_conditions = {}
             
             # Extract strategy parameters with defaults
-            assets = strategy.get('assets', ["BTC", "ETH"])
+            assets = strategy.get('assets', [])
             position_size = strategy.get('position_size', 0.1)
             stop_loss = strategy.get('stop_loss', 0.05)
             take_profit = strategy.get('take_profit', 0.1)
@@ -194,7 +245,17 @@ class RiskAssessmentTool(BaseTool):
                 if isinstance(assets, str):
                     assets = [assets]
                 else:
-                    assets = ["BTC", "ETH"]
+                    assets = []
+            
+            # Only fallback to BTC/ETH if no assets are provided at all
+            if not assets:
+                assets = ["BTC", "ETH"]
+            
+            print(f"Processed Assets: {assets}")
+            print(f"Position Size: {position_size}")
+            print(f"Stop Loss: {stop_loss}")
+            print(f"Take Profit: {take_profit}")
+            print("=" * 80)
             
             risk_metrics = {}
             
@@ -261,10 +322,21 @@ class RiskAssessmentTool(BaseTool):
                     }
                 }
             
-            return json.dumps(risk_metrics, indent=2)
+            result = json.dumps(risk_metrics, indent=2)
+            
+            # COMPREHENSIVE LOGGING: Log the risk tool result
+            print("=" * 80)
+            print("🔧 RISK TOOL: RISK ASSESSMENT RESULT")
+            print("=" * 80)
+            print(f"Result: {result}")
+            print("=" * 80)
+            
+            return result
             
         except Exception as e:
-            return json.dumps({"error": f"Risk assessment failed: {str(e)}"})
+            error_result = json.dumps({"error": f"Risk assessment failed: {str(e)}"})
+            print(f"❌ RISK TOOL ERROR: {str(e)}")
+            return error_result
     
     def _calculate_overall_risk(self, volatility: float, var_95: float, correlation: float) -> float:
         """Calculate overall risk score (0-1, higher is riskier)."""
@@ -310,26 +382,6 @@ class RiskAssessmentTool(BaseTool):
     
     async def _arun(self, strategy: Dict[str, Any] = None, market_conditions: Dict[str, Any] = None) -> str:
         """Async implementation of risk assessment with flexible input handling."""
-        import json  # Move import to top of function
-        
-        # Handle case where arguments might be passed differently by LangChain
-        if strategy is None and market_conditions is None:
-            # Called without arguments, use defaults
-            strategy = {"assets": ["BTC", "ETH"], "position_size": 0.1, "stop_loss": 0.05, "take_profit": 0.1}
-            market_conditions = {}
-        elif isinstance(strategy, str):
-            # Called with a single string argument (might be from LangChain)
-            try:
-                strategy = json.loads(strategy)
-                market_conditions = {}
-            except:
-                strategy = {"assets": ["BTC", "ETH"], "position_size": 0.1, "stop_loss": 0.05, "take_profit": 0.1}
-                market_conditions = {}
-        elif strategy is None:
-            strategy = {"assets": ["BTC", "ETH"], "position_size": 0.1, "stop_loss": 0.05, "take_profit": 0.1}
-        elif market_conditions is None:
-            market_conditions = {}
-        
         return self._run(strategy, market_conditions)
 
 class TradeExecutionTool(BaseTool):
