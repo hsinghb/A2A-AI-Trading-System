@@ -1,5 +1,9 @@
 # Core dependencies
 openai
+# LangChain for agent tools
+langchain
+langchain_community
+langchain-chroma
 # Web framework
 fastapi
 uvicorn
@@ -19,6 +23,14 @@ pydantic-settings
 # Data and ML
 numpy
 scikit-learn
+# Enhanced ML and statistical libraries for trading agents
+scipy>=1.11.0
+pandas>=2.0.0
+# Financial data and technical analysis
+yfinance>=0.2.0
+alpha-vantage>=2.3.0
+# Web3 and blockchain
+web3
 # Using a pre-built wheel for tiktoken
 --find-links https://github.com/openai/tiktoken/releases/download/v0.5.1/tiktoken-0.5.1-cp312-cp312-macosx_11_0_arm64.whl
 tiktoken

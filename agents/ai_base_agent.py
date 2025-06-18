@@ -8,7 +8,7 @@ from langchain_core.memory import BaseMemory
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
@@ -78,7 +78,7 @@ class AIBaseAgent:
     
     def _get_memory(self) -> BaseMemory:
         """Get memory implementation for the agent."""
-        from langchain_core.memory import ConversationBufferMemory
+        from langchain.memory import ConversationBufferMemory
         
         return ConversationBufferMemory(
             memory_key=self.memory_key,

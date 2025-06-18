@@ -20,6 +20,7 @@ from backend.did_registry import did_registry
 import logging
 from dotenv import load_dotenv
 from backend.blockchain.agent_registry import agent_registry
+from datetime import datetime
 
 
 # Configure logging
@@ -86,6 +87,29 @@ class AgentRegistrationRequest(BaseModel):
 async def root():
     """Health check endpoint"""
     return {"status": "healthy", "message": "AI Trading System Backend is running"}
+
+@app.get("/test")
+async def test_endpoint():
+    """Simple test endpoint to verify backend functionality"""
+    return {
+        "status": "success",
+        "message": "Backend is working correctly",
+        "timestamp": datetime.now().isoformat(),
+        "test_data": {
+            "sample_market_data": {
+                "BTC": {
+                    "current_price": 45000.0,
+                    "trend": "bullish",
+                    "volatility": 0.025
+                },
+                "ETH": {
+                    "current_price": 3000.0,
+                    "trend": "neutral",
+                    "volatility": 0.030
+                }
+            }
+        }
+    }
 
 @app.post("/trading/process")
 async def process_trading(request: TradingProcessRequest):

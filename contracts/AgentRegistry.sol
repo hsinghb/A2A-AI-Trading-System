@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 /**
  * @title AgentRegistry
+
  * @dev Smart contract for managing agent DIDs, public keys, and reputation (single admin version)
  */
 contract AgentRegistry {

@@ -186,7 +186,7 @@ def verify_agent_did(agent_type: str, did: str, jwt: str) -> bool:
         return False
 
 def display_trading_analysis(analysis_data):
-    """Display the trading analysis results in a structured format"""
+    """Display the trading analysis results in a flexible format"""
     if not analysis_data:
         st.warning("No analysis data available")
         return
@@ -197,7 +197,7 @@ def display_trading_analysis(analysis_data):
     
     st.subheader("Trading Analysis Results")
     
-    # Display status and message
+    # Display status and message - handle various formats
     status = analysis_data.get("status", "unknown")
     message = analysis_data.get("message", "No message available")
     
@@ -214,116 +214,212 @@ def display_trading_analysis(analysis_data):
             step_msg = step.get("message", "")
             st.info(f"**{step_label}**: {step_msg}")
     
-    # Display the analysis content - handle both old and new response formats
-    analysis = analysis_data.get("analysis", {})
-    result = analysis_data.get("result", {})
+    # Try to find the main analysis content in various possible locations
+    analysis = None
+    result = None
     
-    # Debug: Show what we found
-    st.write("**Debug - Analysis field:**", analysis)
-    st.write("**Debug - Result field:**", result)
+    # Check various possible locations for the analysis data
+    if "analysis" in analysis_data:
+        analysis = analysis_data["analysis"]
+    elif "result" in analysis_data:
+        result = analysis_data["result"]
+    elif "data" in analysis_data:
+        analysis = analysis_data["data"]
+    elif "response" in analysis_data:
+        analysis = analysis_data["response"]
+    elif "content" in analysis_data:
+        analysis = analysis_data["content"]
     
-    # Use result if available (new format), otherwise use analysis (old format)
+    # Use result if available, otherwise use analysis
     if result:
         analysis = result
         st.write("**Debug - Using result field**")
     elif not analysis:
-        st.info("No detailed analysis available")
+        # If no structured analysis found, display the entire response
+        st.info("No structured analysis found - displaying raw response")
+        st.json(analysis_data)
         return
     
     # Create tabs for different aspects of the analysis
-    tab1, tab2, tab3 = st.tabs(["Expert Analysis", "Risk Evaluation", "Raw Data"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Analysis Overview", "Market Data", "Risk Assessment", "Raw Data"])
     
     with tab1:
-        st.markdown("### Expert Analysis")
-        if "expert_analysis" in analysis:
-            expert = analysis["expert_analysis"]
-            
-            # Market Analysis
-            if "market_analysis" in expert:
-                market = expert["market_analysis"]
-                st.markdown("#### Market Analysis")
-                st.markdown(f"**Trend:** {market.get('trend', 'Not available')}")
-                st.markdown(f"**Volatility:** {market.get('volatility', 'Not available')}")
-                st.markdown(f"**Support Levels:** {market.get('support_levels', 'Not available')}")
-                st.markdown(f"**Resistance Levels:** {market.get('resistance_levels', 'Not available')}")
-            
-            # Risk Assessment
-            if "risk_assessment" in expert:
-                risk = expert["risk_assessment"]
-                st.markdown("#### Risk Assessment")
-                st.markdown(f"**Risk Level:** {risk.get('risk_level', 'Not available')}")
-                st.markdown(f"**Key Risks:** {risk.get('key_risks', 'Not available')}")
-            
-            # Recommendations
-            if "recommendations" in expert:
-                st.markdown("#### Trading Recommendations")
-                for i, rec in enumerate(expert["recommendations"], 1):
-                    st.markdown(f"**Recommendation {i}:**")
-                    st.markdown(f"- Action: {rec.get('action', 'Not available')}")
-                    st.markdown(f"- Instrument: {rec.get('instrument', 'Not available')}")
-                    st.markdown(f"- Quantity: {rec.get('quantity', 'Not available')}")
-                    st.markdown(f"- Price Range: {rec.get('price_range', 'Not available')}")
-                    st.markdown(f"- Rationale: {rec.get('rationale', 'Not available')}")
-                    st.markdown("---")
-            
-            # Constraints Analysis
-            if "constraints_analysis" in expert:
-                constraints = expert["constraints_analysis"]
-                st.markdown("#### Constraints Analysis")
-                st.markdown(f"**Constraints Satisfied:** {constraints.get('constraints_satisfied', 'Not available')}")
-                st.markdown(f"**Violations:** {constraints.get('violations', 'Not available')}")
-        else:
-            st.info("Expert analysis not available")
-            
-    with tab2:
-        st.markdown("### Risk Evaluation")
-        if "risk_evaluation" in analysis:
-            risk_eval = analysis["risk_evaluation"]
-            
-            # Risk Metrics
-            if "risk_metrics" in risk_eval:
-                metrics = risk_eval["risk_metrics"]
-                st.markdown("#### Risk Metrics")
-                st.markdown(f"**Volatility:** {metrics.get('volatility', 'Not available')}")
-                st.markdown(f"**Market Risk:** {metrics.get('market_risk', 'Not available')}")
-                st.markdown(f"**Liquidity Risk:** {metrics.get('liquidity_risk', 'Not available')}")
-                st.markdown(f"**Credit Risk:** {metrics.get('credit_risk', 'Not available')}")
-            
-            # Overall Risk Assessment
-            st.markdown("#### Overall Assessment")
-            st.markdown(f"**Risk Score:** {risk_eval.get('risk_score', 'Not available')}")
-            st.markdown(f"**Risk Level:** {risk_eval.get('risk_level', 'Not available')}")
-            
-            # Risk Factors
-            if "risk_factors" in risk_eval:
-                st.markdown("#### Risk Factors")
-                for i, factor in enumerate(risk_eval["risk_factors"], 1):
-                    st.markdown(f"**Factor {i}:**")
-                    st.markdown(f"- Factor: {factor.get('factor', 'Not available')}")
-                    st.markdown(f"- Severity: {factor.get('severity', 'Not available')}")
-                    st.markdown(f"- Mitigation: {factor.get('mitigation', 'Not available')}")
-                    st.markdown("---")
-            
-            # Constraint Violations
-            if "constraint_violations" in risk_eval:
-                violations = risk_eval["constraint_violations"]
-                if violations:
-                    st.markdown("#### Constraint Violations")
-                    for violation in violations:
-                        st.warning(f"- {violation}")
+        st.markdown("### Analysis Overview")
+        
+        # Handle different analysis formats
+        if isinstance(analysis, dict):
+            # Look for common analysis fields
+            if "expert_analysis" in analysis:
+                expert = analysis["expert_analysis"]
+                st.markdown("#### Expert Analysis")
+                if isinstance(expert, dict):
+                    for key, value in expert.items():
+                        if isinstance(value, (dict, list)):
+                            st.markdown(f"**{key.replace('_', ' ').title()}:**")
+                            st.json(value)
+                        else:
+                            st.markdown(f"**{key.replace('_', ' ').title()}:** {value}")
                 else:
-                    st.success("No constraint violations detected")
-        else:
-            st.info("Risk evaluation not available")
+                    st.markdown(f"**Expert Analysis:** {expert}")
             
+            # Display any recommendations
+            if "recommendations" in analysis:
+                st.markdown("#### Recommendations")
+                recs = analysis["recommendations"]
+                if isinstance(recs, list):
+                    for i, rec in enumerate(recs, 1):
+                        if isinstance(rec, dict):
+                            st.markdown(f"**Recommendation {i}:**")
+                            for key, value in rec.items():
+                                st.markdown(f"- {key.replace('_', ' ').title()}: {value}")
+                        else:
+                            st.markdown(f"**Recommendation {i}:** {rec}")
+                        st.markdown("---")
+                else:
+                    st.markdown(f"**Recommendations:** {recs}")
+            
+            # Display any strategy information
+            if "strategy" in analysis:
+                st.markdown("#### Strategy")
+                strategy = analysis["strategy"]
+                if isinstance(strategy, dict):
+                    for key, value in strategy.items():
+                        st.markdown(f"**{key.replace('_', ' ').title()}:** {value}")
+                else:
+                    st.markdown(f"**Strategy:** {strategy}")
+        else:
+            st.markdown(f"**Analysis:** {analysis}")
+    
+    with tab2:
+        st.markdown("### Market Data")
+        
+        # Look for market analysis data in various formats
+        market_data = None
+        if isinstance(analysis, dict):
+            if "market_analysis" in analysis:
+                market_data = analysis["market_analysis"]
+            elif "market_data" in analysis:
+                market_data = analysis["market_data"]
+            elif "BTC" in analysis or "ETH" in analysis:
+                # Direct asset data
+                market_data = analysis
+        
+        if market_data:
+            if isinstance(market_data, dict):
+                for asset, data in market_data.items():
+                    if isinstance(data, dict):
+                        st.markdown(f"#### {asset}")
+                        
+                        # Current price
+                        if "current_price" in data:
+                            st.metric("Current Price", f"${data['current_price']:.2f}")
+                        
+                        # Statistical metrics
+                        if "statistical_metrics" in data:
+                            metrics = data["statistical_metrics"]
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("Mean Return", f"{metrics.get('mean_return', 0):.4f}")
+                            with col2:
+                                st.metric("Volatility", f"{metrics.get('volatility', 0):.4f}")
+                            with col3:
+                                st.metric("VaR (95%)", f"{metrics.get('var_95', 0):.4f}")
+                        
+                        # Trend analysis
+                        if "trend_analysis" in data:
+                            trend = data["trend_analysis"]
+                            st.markdown("**Trend Analysis:**")
+                            st.markdown(f"- Direction: {trend.get('trend_direction', 'Unknown')}")
+                            st.markdown(f"- SMA 20: ${trend.get('sma_20', 0):.2f}")
+                            st.markdown(f"- SMA 50: ${trend.get('sma_50', 0):.2f}")
+                        
+                        # Technical indicators
+                        if "technical_indicators" in data:
+                            tech = data["technical_indicators"]
+                            st.markdown("**Technical Indicators:**")
+                            st.markdown(f"- RSI: {tech.get('rsi', 0):.2f}")
+                            st.markdown(f"- MACD: {tech.get('macd', 0):.4f}")
+                        
+                        # Recommendations
+                        if "recommendations" in data:
+                            st.markdown("**Recommendations:**")
+                            for rec in data["recommendations"]:
+                                st.info(f"• {rec}")
+                        
+                        st.markdown("---")
+                    else:
+                        st.markdown(f"**{asset}:** {data}")
+            else:
+                st.markdown(f"**Market Data:** {market_data}")
+        else:
+            st.info("No market data available")
+    
     with tab3:
+        st.markdown("### Risk Assessment")
+        
+        # Look for risk assessment data
+        risk_data = None
+        if isinstance(analysis, dict):
+            if "risk_evaluation" in analysis:
+                risk_data = analysis["risk_evaluation"]
+            elif "risk_assessment" in analysis:
+                risk_data = analysis["risk_assessment"]
+            elif "risk_metrics" in analysis:
+                risk_data = analysis["risk_metrics"]
+        
+        if risk_data:
+            if isinstance(risk_data, dict):
+                # Risk metrics
+                if "risk_metrics" in risk_data:
+                    metrics = risk_data["risk_metrics"]
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric("Volatility", f"{metrics.get('volatility', 0):.4f}")
+                        st.metric("Market Risk", f"{metrics.get('market_risk', 0):.4f}")
+                    with col2:
+                        st.metric("Liquidity Risk", f"{metrics.get('liquidity_risk', 0):.4f}")
+                        st.metric("Credit Risk", f"{metrics.get('credit_risk', 0):.4f}")
+                
+                # Overall risk assessment
+                st.markdown("#### Overall Assessment")
+                st.markdown(f"**Risk Score:** {risk_data.get('risk_score', 'Not available')}")
+                st.markdown(f"**Risk Level:** {risk_data.get('risk_level', 'Not available')}")
+                
+                # Risk factors
+                if "risk_factors" in risk_data:
+                    st.markdown("#### Risk Factors")
+                    for i, factor in enumerate(risk_data["risk_factors"], 1):
+                        if isinstance(factor, dict):
+                            st.markdown(f"**Factor {i}:**")
+                            st.markdown(f"- Factor: {factor.get('factor', 'Not available')}")
+                            st.markdown(f"- Severity: {factor.get('severity', 'Not available')}")
+                            st.markdown(f"- Mitigation: {factor.get('mitigation', 'Not available')}")
+                        else:
+                            st.markdown(f"**Factor {i}:** {factor}")
+                        st.markdown("---")
+                
+                # Constraint violations
+                if "constraint_violations" in risk_data:
+                    violations = risk_data["constraint_violations"]
+                    if violations:
+                        st.markdown("#### Constraint Violations")
+                        for violation in violations:
+                            st.warning(f"- {violation}")
+                    else:
+                        st.success("No constraint violations detected")
+            else:
+                st.markdown(f"**Risk Assessment:** {risk_data}")
+        else:
+            st.info("No risk assessment data available")
+    
+    with tab4:
         st.markdown("### Raw Analysis Data")
         st.json(analysis)
             
     # Display any additional information
-    if "additional_info" in analysis:
+    if "additional_info" in analysis_data:
         with st.expander("Additional Information"):
-            st.json(analysis["additional_info"])
+            st.json(analysis_data["additional_info"])
 
 def trigger_trading_request(session_id, goals, constraints, human_trader):
     """Trigger a trading request and handle the response"""

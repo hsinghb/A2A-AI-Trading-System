@@ -9,6 +9,7 @@ from .base_agent import BaseAgent, AgentMessage
 from backend.agent_registry import agent_registry, AgentRole
 from backend.did_registry import did_registry
 import os
+from agents.trading_tools import RiskAssessmentTool
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -22,6 +23,7 @@ class RiskAgent(BaseAgent):
         super().__init__(did=did, name="RiskEvaluator")
         logger.info(f"Initialized Risk Agent with DID: {did}")
         self.max_risk_level = float(os.getenv('MAX_RISK_LEVEL', 0.7))
+        self.risk_tool = RiskAssessmentTool()
     
     async def verify_agent(self, ask_id: str, did: str, token: str, public_key: str, algorithm: str = 'ES256K') -> Dict[str, Any]:
         """Verify another agent's DID/JWT."""
@@ -174,40 +176,67 @@ class RiskAgent(BaseAgent):
             }
     
     async def _evaluate_risk(self, trading_analysis: Dict[str, Any], market_conditions: Dict[str, Any]) -> Dict[str, Any]:
-        """Evaluate the risk of a trading request"""
+        """Evaluate the risk of a trading request using the enhanced risk assessment tool"""
         try:
-            # Calculate risk metrics
-            risk_metrics = self._calculate_risk_metrics(trading_analysis, market_conditions)
-            risk_score = self._calculate_risk_score(risk_metrics)
-            recommendations = self._generate_recommendations(risk_metrics, risk_score)
+            # Handle case where inputs might be None or empty
+            if not trading_analysis:
+                trading_analysis = {}
+            if not market_conditions:
+                market_conditions = {}
             
-            # Create evaluation response
-            evaluation = {
-                "risk_metrics": risk_metrics,
-                "risk_score": risk_score,
-                "risk_level": "HIGH" if risk_score > self.max_risk_level else "MODERATE",
-                "recommendations": recommendations,
-                "constraint_violations": [],
-                "risk_factors": [
-                    {
-                        "factor": "Market Volatility",
-                        "severity": "medium",
-                        "mitigation": "Use limit orders and position sizing"
-                    },
-                    {
-                        "factor": "Liquidity Risk",
-                        "severity": "low",
-                        "mitigation": "Monitor order book depth"
-                    }
-                ],
-                "timestamp": datetime.utcnow().isoformat()
+            # Extract assets from trading analysis if available
+            assets = []
+            if isinstance(trading_analysis, dict):
+                # Look for assets in various possible locations
+                if "market_analysis" in trading_analysis:
+                    market_data = trading_analysis["market_analysis"]
+                    if isinstance(market_data, dict):
+                        assets = list(market_data.keys())
+                elif "assets" in trading_analysis:
+                    assets = trading_analysis["assets"]
+                elif "goals" in trading_analysis and isinstance(trading_analysis["goals"], dict):
+                    assets = trading_analysis["goals"].get("assets", [])
+            
+            # Create a proper strategy structure
+            strategy = {
+                "assets": assets if assets else ["BTC", "ETH"],
+                "position_size": 0.1,
+                "stop_loss": 0.05,
+                "take_profit": 0.1
             }
             
-            return evaluation
+            # Use the enhanced risk assessment tool
+            risk_assessment_json = await self.risk_tool._arun(strategy, market_conditions)
             
+            try:
+                import json
+                risk_assessment = json.loads(risk_assessment_json)
+            except Exception as e:
+                logger.error(f"Error parsing risk assessment JSON: {e}")
+                risk_assessment = {"error": str(e), "raw_response": risk_assessment_json}
+
+            evaluation = {
+                "risk_assessment": risk_assessment,
+                "strategy_used": strategy,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            return evaluation
         except Exception as e:
             logger.error(f"Error evaluating risk: {e}", exc_info=True)
-            raise
+            # Return a fallback evaluation
+            return {
+                "risk_assessment": {
+                    "error": str(e),
+                    "fallback_analysis": "Risk assessment failed, using default values"
+                },
+                "strategy_used": {
+                    "assets": ["BTC", "ETH"],
+                    "position_size": 0.1,
+                    "stop_loss": 0.05,
+                    "take_profit": 0.1
+                },
+                "timestamp": datetime.utcnow().isoformat()
+            }
     
     def _calculate_risk_metrics(self, trading_analysis: Dict[str, Any], market_conditions: Dict[str, Any]) -> Dict[str, float]:
         """Calculate various risk metrics for the trading proposal."""
