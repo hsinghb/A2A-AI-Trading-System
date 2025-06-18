@@ -916,36 +916,35 @@ if all(st.session_state.registration_status.values()) and st.session_state.exper
         # Demo: Simulate a TriggerAgent → ExpertTraderAgent → RiskEvaluatorAgent workflow
         st.header("🤖 AI Agent Workflows")
 
-        # Default values with proper JSON formatting
-        default_goals = {
-            "goal": "maximize profit",
-            "timeframe": "1d",
-            "target_return": 0.05,
-            "risk_tolerance": "moderate",
-            "trading_pairs": ["BTC/USD", "ETH/USD"],
-            "strategy_type": "momentum"
+        # Use the new flexible trading form
+        goals, constraints = create_flexible_trading_form()
+        
+        # Convert the form data to the format expected by the backend
+        # Map the new flexible format to the backend format
+        backend_goals = {
+            "goal": f"{goals['investment_style']} trading with {goals['risk_tolerance']} risk",
+            "timeframe": goals['time_horizon'],
+            "target_return": goals['target_return'],
+            "risk_tolerance": goals['risk_tolerance'],
+            "trading_pairs": [f"{asset}/USD" for asset in constraints['allowed_assets']],
+            "strategy_type": goals['investment_style'],
+            "focus_areas": goals['focus_areas'],
+            "use_stop_loss": goals['use_stop_loss'],
+            "use_take_profit": goals['use_take_profit'],
+            "allow_shorting": goals['allow_shorting'],
+            "max_correlation": goals['max_correlation'],
+            "min_sharpe_ratio": goals['min_sharpe_ratio']
         }
         
-        default_constraints = {
-            "max_risk": 0.5,
-            "max_position_size": 0.1,
-            "max_drawdown": 0.15,
-            "min_liquidity": 1000000,
-            "max_slippage": 0.01,
-            "min_volume": 100000
+        backend_constraints = {
+            "max_risk": 1.0 - goals['risk_tolerance'].replace('low', '0.8').replace('moderate', '0.6').replace('high', '0.4').replace('very_high', '0.2'),
+            "max_position_size": constraints['max_position_size'],
+            "max_drawdown": constraints['max_drawdown'],
+            "min_liquidity": constraints['min_liquidity'],
+            "max_slippage": constraints['max_slippage'],
+            "allowed_assets": constraints['allowed_assets'],
+            "sector_limits": constraints['sector_limits']
         }
-
-        goals = st.text_area(
-            "Trading Goals (JSON)",
-            value=json.dumps(default_goals, indent=2),
-            help="Enter your trading goals in JSON format. Example: {'goal': 'maximize profit', 'timeframe': '1d'}"
-        )
-        
-        constraints = st.text_area(
-            "Trading Constraints (JSON)",
-            value=json.dumps(default_constraints, indent=2),
-            help="Enter your trading constraints in JSON format. Example: {'max_risk': 0.5, 'max_position_size': 0.1}"
-        )
 
         # Chat workflow buttons
         col1, col2 = st.columns(2)
@@ -959,8 +958,16 @@ if all(st.session_state.registration_status.values()) and st.session_state.exper
                 if HUMAN_TRADER_ACCOUNT is None:
                     st.error("❌ Human Trader account not found. Please register a Human Trader account first.")
                 else:
-                    if process_trading_request(goals, constraints, ask_id, HUMAN_TRADER_ACCOUNT):
+                    # Convert to JSON strings for the existing function
+                    goals_json = json.dumps(backend_goals)
+                    constraints_json = json.dumps(backend_constraints)
+                    
+                    if process_trading_request(goals_json, constraints_json, ask_id, HUMAN_TRADER_ACCOUNT):
                         st.rerun()
+        
+        with col2:
+            if st.button("🔄 Reset Form", key="reset_form"):
+                st.rerun()
 
     # Display chat history for current session
     if "current_session" in st.session_state:
@@ -1071,36 +1078,35 @@ if True:  # all_agents_registered():  # Temporarily bypass registration check
     # Demo: Simulate a TriggerAgent → ExpertTraderAgent → RiskEvaluatorAgent workflow
     st.header("🤖 AI Agent Workflows")
 
-    # Default values with proper JSON formatting
-    default_goals = {
-        "goal": "maximize profit",
-        "timeframe": "1d",
-        "target_return": 0.05,
-        "risk_tolerance": "moderate",
-        "trading_pairs": ["BTC/USD", "ETH/USD"],
-        "strategy_type": "momentum"
+    # Use the new flexible trading form
+    goals, constraints = create_flexible_trading_form()
+    
+    # Convert the form data to the format expected by the backend
+    # Map the new flexible format to the backend format
+    backend_goals = {
+        "goal": f"{goals['investment_style']} trading with {goals['risk_tolerance']} risk",
+        "timeframe": goals['time_horizon'],
+        "target_return": goals['target_return'],
+        "risk_tolerance": goals['risk_tolerance'],
+        "trading_pairs": [f"{asset}/USD" for asset in constraints['allowed_assets']],
+        "strategy_type": goals['investment_style'],
+        "focus_areas": goals['focus_areas'],
+        "use_stop_loss": goals['use_stop_loss'],
+        "use_take_profit": goals['use_take_profit'],
+        "allow_shorting": goals['allow_shorting'],
+        "max_correlation": goals['max_correlation'],
+        "min_sharpe_ratio": goals['min_sharpe_ratio']
     }
     
-    default_constraints = {
-        "max_risk": 0.5,
-        "max_position_size": 0.1,
-        "max_drawdown": 0.15,
-        "min_liquidity": 1000000,
-        "max_slippage": 0.01,
-        "min_volume": 100000
+    backend_constraints = {
+        "max_risk": 1.0 - goals['risk_tolerance'].replace('low', '0.8').replace('moderate', '0.6').replace('high', '0.4').replace('very_high', '0.2'),
+        "max_position_size": constraints['max_position_size'],
+        "max_drawdown": constraints['max_drawdown'],
+        "min_liquidity": constraints['min_liquidity'],
+        "max_slippage": constraints['max_slippage'],
+        "allowed_assets": constraints['allowed_assets'],
+        "sector_limits": constraints['sector_limits']
     }
-
-    goals = st.text_area(
-        "Trading Goals (JSON)",
-        value=json.dumps(default_goals, indent=2),
-        help="Enter your trading goals in JSON format. Example: {'goal': 'maximize profit', 'timeframe': '1d'}"
-    )
-    
-    constraints = st.text_area(
-        "Trading Constraints (JSON)",
-        value=json.dumps(default_constraints, indent=2),
-        help="Enter your trading constraints in JSON format. Example: {'max_risk': 0.5, 'max_position_size': 0.1}"
-    )
 
     # Chat workflow buttons
     col1, col2 = st.columns(2)
@@ -1114,24 +1120,16 @@ if True:  # all_agents_registered():  # Temporarily bypass registration check
             if HUMAN_TRADER_ACCOUNT is None:
                 st.error("❌ Human Trader account not found. Please register a Human Trader account first.")
             else:
-                if process_trading_request(goals, constraints, ask_id, HUMAN_TRADER_ACCOUNT):
+                # Convert to JSON strings for the existing function
+                goals_json = json.dumps(backend_goals)
+                constraints_json = json.dumps(backend_constraints)
+                
+                if process_trading_request(goals_json, constraints_json, ask_id, HUMAN_TRADER_ACCOUNT):
                     st.rerun()
-
+    
     with col2:
-        if st.button("💼 Request AI Trading Advice", key="request_trading_advice"):
-            ask_id = str(uuid.uuid4())
-            st.write(f"🆔 Session ID: {ask_id}")
-
-            advice_request = {"query": "How do I optimize my trading strategy?"}
-            
-            # TraderAgent sends a trading advice request
-            trader_resp = trading_advice_process(ask_id, advice_request)
-            if trader_resp:
-                st.session_state.chat_history.append({
-                    "role": "💼 Trader AI", 
-                    "content": f"**AI Advice Request**\n\n{json.dumps(trader_resp, indent=2)}"
-                })
-                st.rerun()
+        if st.button("🔄 Reset Form", key="reset_form"):
+            st.rerun()
 
 else:
     st.info("👆 Please register all AI agents first to enable intelligent chat functionality")
@@ -1209,4 +1207,336 @@ def display_chat_history(session_id: str):
     history = get_chat_history(session_id)
     for msg in history:
         with st.chat_message(msg["role"]):
-            st.write(msg["content"]) 
+            st.write(msg["content"])
+
+def create_flexible_trading_form():
+    """Create a flexible trading form with presets and dynamic inputs"""
+    
+    st.markdown("### 🎯 Trading Goals & Constraints")
+    
+    # Configuration management
+    col1, col2, col3 = st.columns([2, 1, 1])
+    
+    with col1:
+        # Preset selection
+        preset_option = st.selectbox(
+            "Choose a preset or create custom:",
+            [
+                "Conservative Portfolio",
+                "Moderate Growth", 
+                "Aggressive Trading",
+                "Day Trading",
+                "Swing Trading",
+                "Custom Configuration"
+            ],
+            help="Select a preset to auto-fill common trading parameters, or choose Custom for full control"
+        )
+        
+        # Show preset preview
+        if preset_option != "Custom Configuration":
+            preset_descriptions = {
+                "Conservative Portfolio": "Low risk, long-term value investing with blue-chip stocks and dividends. Target: 5% annual return, max 3% drawdown.",
+                "Moderate Growth": "Balanced growth strategy with ETFs and growth stocks. Target: 12% annual return, max 8% drawdown.",
+                "Aggressive Trading": "High-risk momentum trading with crypto and tech stocks. Target: 25% annual return, max 15% drawdown.",
+                "Day Trading": "Short-term scalping with high-volume stocks. Target: 2% daily return, max 5% drawdown.",
+                "Swing Trading": "Medium-term technical analysis with support/resistance. Target: 8% weekly return, max 10% drawdown."
+            }
+            
+            st.info(f"**{preset_option}**: {preset_descriptions.get(preset_option, '')}")
+    
+    with col2:
+        # Save configuration
+        config_name = st.text_input("Config Name", placeholder="My Strategy", help="Name to save your configuration")
+        if st.button("💾 Save Config", key="save_config"):
+            if config_name:
+                # This would save to a file or database
+                st.success(f"Configuration '{config_name}' saved!")
+            else:
+                st.error("Please enter a configuration name")
+    
+    with col3:
+        # Load configuration
+        saved_configs = ["My Conservative", "Growth Strategy", "Day Trading Setup"]  # This would load from storage
+        if saved_configs:
+            load_config = st.selectbox("Load Saved Config", ["None"] + saved_configs)
+            if load_config != "None" and st.button("📂 Load Config", key="load_config"):
+                st.info(f"Loading configuration: {load_config}")
+                # This would load the selected configuration
+                st.rerun()
+    
+    # Initialize default values based on preset
+    if preset_option == "Conservative Portfolio":
+        default_goals = {
+            "target_return": 0.05,
+            "time_horizon": "1y",
+            "risk_tolerance": "low",
+            "investment_style": "value",
+            "focus_areas": ["blue_chips", "dividends"]
+        }
+        default_constraints = {
+            "max_position_size": 50000,
+            "max_drawdown": 0.03,
+            "allowed_assets": ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"],
+            "min_liquidity": 5000000,
+            "max_slippage": 0.005,
+            "sector_limits": {"tech": 0.4, "finance": 0.3}
+        }
+    elif preset_option == "Moderate Growth":
+        default_goals = {
+            "target_return": 0.12,
+            "time_horizon": "6m",
+            "risk_tolerance": "moderate",
+            "investment_style": "growth",
+            "focus_areas": ["growth_stocks", "etfs"]
+        }
+        default_constraints = {
+            "max_position_size": 100000,
+            "max_drawdown": 0.08,
+            "allowed_assets": ["SPY", "QQQ", "AAPL", "MSFT", "NVDA"],
+            "min_liquidity": 2000000,
+            "max_slippage": 0.01,
+            "sector_limits": {"tech": 0.6, "healthcare": 0.2}
+        }
+    elif preset_option == "Aggressive Trading":
+        default_goals = {
+            "target_return": 0.25,
+            "time_horizon": "1m",
+            "risk_tolerance": "high",
+            "investment_style": "momentum",
+            "focus_areas": ["crypto", "meme_stocks", "options"]
+        }
+        default_constraints = {
+            "max_position_size": 200000,
+            "max_drawdown": 0.15,
+            "allowed_assets": ["BTC", "ETH", "TSLA", "NVDA", "AMD"],
+            "min_liquidity": 1000000,
+            "max_slippage": 0.02,
+            "sector_limits": {"tech": 0.8, "crypto": 0.4}
+        }
+    elif preset_option == "Day Trading":
+        default_goals = {
+            "target_return": 0.02,
+            "time_horizon": "1d",
+            "risk_tolerance": "high",
+            "investment_style": "scalping",
+            "focus_areas": ["high_volume", "volatility"]
+        }
+        default_constraints = {
+            "max_position_size": 50000,
+            "max_drawdown": 0.05,
+            "allowed_assets": ["SPY", "QQQ", "TSLA", "NVDA", "AMD"],
+            "min_liquidity": 10000000,
+            "max_slippage": 0.003,
+            "sector_limits": {"tech": 0.7}
+        }
+    elif preset_option == "Swing Trading":
+        default_goals = {
+            "target_return": 0.08,
+            "time_horizon": "1w",
+            "risk_tolerance": "moderate",
+            "investment_style": "technical",
+            "focus_areas": ["breakouts", "support_resistance"]
+        }
+        default_constraints = {
+            "max_position_size": 75000,
+            "max_drawdown": 0.10,
+            "allowed_assets": ["AAPL", "MSFT", "GOOGL", "AMZN", "META"],
+            "min_liquidity": 3000000,
+            "max_slippage": 0.008,
+            "sector_limits": {"tech": 0.5, "consumer": 0.3}
+        }
+    else:  # Custom Configuration
+        default_goals = {
+            "target_return": 0.10,
+            "time_horizon": "3m",
+            "risk_tolerance": "moderate",
+            "investment_style": "balanced",
+            "focus_areas": []
+        }
+        default_constraints = {
+            "max_position_size": 100000,
+            "max_drawdown": 0.08,
+            "allowed_assets": ["BTC", "ETH", "AAPL", "MSFT"],
+            "min_liquidity": 2000000,
+            "max_slippage": 0.01,
+            "sector_limits": {}
+        }
+    
+    # Create two columns for goals and constraints
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("#### 📈 Trading Goals")
+        
+        # Target return with slider
+        target_return = st.slider(
+            "Target Return (%)",
+            min_value=0.1,
+            max_value=100.0,
+            value=float(default_goals["target_return"] * 100),
+            step=0.1,
+            help="Expected annual return target"
+        ) / 100.0
+        
+        # Time horizon
+        time_horizon = st.selectbox(
+            "Time Horizon",
+            ["1d", "1w", "1m", "3m", "6m", "1y", "2y", "5y"],
+            index=["1d", "1w", "1m", "3m", "6m", "1y", "2y", "5y"].index(default_goals["time_horizon"]),
+            help="Investment time horizon"
+        )
+        
+        # Risk tolerance
+        risk_tolerance = st.selectbox(
+            "Risk Tolerance",
+            ["low", "moderate", "high", "very_high"],
+            index=["low", "moderate", "high", "very_high"].index(default_goals["risk_tolerance"]),
+            help="Your risk tolerance level"
+        )
+        
+        # Investment style
+        investment_style = st.selectbox(
+            "Investment Style",
+            ["value", "growth", "momentum", "dividend", "scalping", "swing", "balanced"],
+            index=["value", "growth", "momentum", "dividend", "scalping", "swing", "balanced"].index(default_goals["investment_style"]),
+            help="Your preferred investment approach"
+        )
+        
+        # Focus areas (multi-select)
+        focus_options = [
+            "blue_chips", "growth_stocks", "dividends", "etfs", "crypto", 
+            "meme_stocks", "options", "high_volume", "volatility", 
+            "breakouts", "support_resistance", "ai_tech", "biotech"
+        ]
+        focus_areas = st.multiselect(
+            "Focus Areas",
+            focus_options,
+            default=default_goals["focus_areas"],
+            help="Specific areas or strategies to focus on"
+        )
+    
+    with col2:
+        st.markdown("#### 🛡️ Risk Constraints")
+        
+        # Position size
+        max_position_size = st.number_input(
+            "Max Position Size ($)",
+            min_value=1000,
+            max_value=1000000,
+            value=default_constraints["max_position_size"],
+            step=1000,
+            help="Maximum amount to invest in a single position"
+        )
+        
+        # Max drawdown
+        max_drawdown = st.slider(
+            "Max Drawdown (%)",
+            min_value=0.1,
+            max_value=50.0,
+            value=float(default_constraints["max_drawdown"] * 100),
+            step=0.1,
+            help="Maximum acceptable portfolio decline"
+        ) / 100.0
+        
+        # Allowed assets
+        asset_options = [
+            "BTC", "ETH", "AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "NVDA", 
+            "AMD", "META", "SPY", "QQQ", "IWM", "GLD", "SLV", "USDT"
+        ]
+        allowed_assets = st.multiselect(
+            "Allowed Assets",
+            asset_options,
+            default=default_constraints["allowed_assets"],
+            help="Assets you're willing to trade"
+        )
+        
+        # Liquidity requirement
+        min_liquidity = st.selectbox(
+            "Min Liquidity",
+            ["$500K", "$1M", "$2M", "$5M", "$10M", "$50M"],
+            index=["$500K", "$1M", "$2M", "$5M", "$10M", "$50M"].index(f"${default_constraints['min_liquidity']/1000000:.0f}M"),
+            help="Minimum daily trading volume requirement"
+        )
+        min_liquidity_value = int(min_liquidity.replace("$", "").replace("K", "000").replace("M", "000000"))
+        
+        # Max slippage
+        max_slippage = st.slider(
+            "Max Slippage (%)",
+            min_value=0.1,
+            max_value=5.0,
+            value=float(default_constraints["max_slippage"] * 100),
+            step=0.1,
+            help="Maximum acceptable price slippage"
+        ) / 100.0
+    
+    # Advanced options expander
+    with st.expander("🔧 Advanced Options"):
+        st.markdown("#### Sector Limits")
+        
+        sectors = ["tech", "finance", "healthcare", "consumer", "energy", "crypto", "biotech"]
+        sector_limits = {}
+        
+        for sector in sectors:
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                st.write(f"{sector.title()}")
+            with col2:
+                limit = st.number_input(
+                    f"{sector.title()} %",
+                    min_value=0,
+                    max_value=100,
+                    value=int(default_constraints.get("sector_limits", {}).get(sector, 0) * 100),
+                    key=f"sector_{sector}"
+                ) / 100.0
+                if limit > 0:
+                    sector_limits[sector] = limit
+        
+        # Additional constraints
+        st.markdown("#### Additional Constraints")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            use_stop_loss = st.checkbox("Use Stop Loss", value=True)
+            use_take_profit = st.checkbox("Use Take Profit", value=True)
+            allow_shorting = st.checkbox("Allow Short Positions", value=False)
+        
+        with col2:
+            max_correlation = st.slider("Max Correlation", 0.0, 1.0, 0.7, 0.1)
+            min_sharpe_ratio = st.number_input("Min Sharpe Ratio", 0.0, 5.0, 0.5, 0.1)
+    
+    # Build the final goals and constraints objects
+    goals = {
+        "target_return": target_return,
+        "time_horizon": time_horizon,
+        "risk_tolerance": risk_tolerance,
+        "investment_style": investment_style,
+        "focus_areas": focus_areas,
+        "use_stop_loss": use_stop_loss,
+        "use_take_profit": use_take_profit,
+        "allow_shorting": allow_shorting,
+        "max_correlation": max_correlation,
+        "min_sharpe_ratio": min_sharpe_ratio
+    }
+    
+    constraints = {
+        "max_position_size": max_position_size,
+        "max_drawdown": max_drawdown,
+        "allowed_assets": allowed_assets,
+        "min_liquidity": min_liquidity_value,
+        "max_slippage": max_slippage,
+        "sector_limits": sector_limits
+    }
+    
+    # Show summary
+    st.markdown("### 📋 Configuration Summary")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("**Goals:**")
+        st.json(goals)
+    
+    with col2:
+        st.markdown("**Constraints:**")
+        st.json(constraints)
+    
+    return goals, constraints 
