@@ -117,6 +117,7 @@ async def process_trading(request: TradingProcessRequest):
     try:
         logger.info(f"Received trading request for session {request.session_id}")
         logger.debug(f"Request data: {request.dict()}")
+        now_ts = datetime.utcnow().isoformat()
         
         # Verify the JWT first
         try:
@@ -128,7 +129,13 @@ async def process_trading(request: TradingProcessRequest):
             logger.info(f"JWT verification successful for DID: {request.verification['did']}")
         except Exception as e:
             logger.error(f"JWT verification failed: {str(e)}")
-            raise HTTPException(status_code=401, detail=f"JWT verification failed: {str(e)}")
+            return {
+                "status": "error",
+                "session_id": request.session_id,
+                "analysis": {},
+                "timestamp": now_ts,
+                "message": f"JWT verification failed: {str(e)}"
+            }
         
         # Get the orchestrator
         try:
@@ -136,7 +143,13 @@ async def process_trading(request: TradingProcessRequest):
             logger.info("Successfully initialized orchestrator")
         except Exception as e:
             logger.error(f"Failed to initialize orchestrator: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Failed to initialize orchestrator: {str(e)}")
+            return {
+                "status": "error",
+                "session_id": request.session_id,
+                "analysis": {},
+                "timestamp": now_ts,
+                "message": f"Failed to initialize orchestrator: {str(e)}"
+            }
         
         # Process the request through the agent orchestration system
         try:
@@ -147,27 +160,44 @@ async def process_trading(request: TradingProcessRequest):
             )
             logger.info(f"Orchestrator response: {result}")
             
-            if result["status"] == "error":
-                logger.error(f"Orchestrator returned error: {result['error']}")
-                raise HTTPException(status_code=500, detail=result["error"])
+            if result.get("status") == "error":
+                logger.error(f"Orchestrator returned error: {result.get('error', 'Unknown error')}")
+                return {
+                    "status": "error",
+                    "session_id": request.session_id,
+                    "analysis": {},
+                    "timestamp": now_ts,
+                    "message": f"Orchestrator error: {result.get('error', 'Unknown error')}"
+                }
             
             return {
                 "status": "success",
                 "session_id": request.session_id,
                 "analysis": result.get("result", {}),
-                "timestamp": result.get("timestamp"),
+                "timestamp": result.get("timestamp", now_ts),
                 "message": "Trading analysis completed successfully"
             }
             
         except Exception as e:
             logger.error(f"Error during orchestration: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Error during orchestration: {str(e)}")
+            return {
+                "status": "error",
+                "session_id": request.session_id,
+                "analysis": {},
+                "timestamp": now_ts,
+                "message": f"Error during orchestration: {str(e)}"
+            }
             
-    except HTTPException as he:
-        raise he
     except Exception as e:
         logger.error(f"Unexpected error in process_trading: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+        now_ts = datetime.utcnow().isoformat()
+        return {
+            "status": "error",
+            "session_id": getattr(request, 'session_id', None),
+            "analysis": {},
+            "timestamp": now_ts,
+            "message": f"Unexpected error: {str(e)}"
+        }
 
 @app.post("/did/register", response_model=DIDRegisterResponse)
 async def register_did(request: DIDRegisterRequest):

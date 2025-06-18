@@ -214,27 +214,10 @@ def display_trading_analysis(analysis_data):
             step_msg = step.get("message", "")
             st.info(f"**{step_label}**: {step_msg}")
     
-    # Try to find the main analysis content in various possible locations
-    analysis = None
-    result = None
+    # The main analysis data is in the "analysis" field from the backend
+    analysis = analysis_data.get("analysis", {})
     
-    # Check various possible locations for the analysis data
-    if "analysis" in analysis_data:
-        analysis = analysis_data["analysis"]
-    elif "result" in analysis_data:
-        result = analysis_data["result"]
-    elif "data" in analysis_data:
-        analysis = analysis_data["data"]
-    elif "response" in analysis_data:
-        analysis = analysis_data["response"]
-    elif "content" in analysis_data:
-        analysis = analysis_data["content"]
-    
-    # Use result if available, otherwise use analysis
-    if result:
-        analysis = result
-        st.write("**Debug - Using result field**")
-    elif not analysis:
+    if not analysis:
         # If no structured analysis found, display the entire response
         st.info("No structured analysis found - displaying raw response")
         st.json(analysis_data)
@@ -357,11 +340,13 @@ def display_trading_analysis(analysis_data):
     with tab3:
         st.markdown("### Risk Assessment")
         
-        # Look for risk assessment data
+        # Look for risk assessment data in the correct location
         risk_data = None
         if isinstance(analysis, dict):
             if "risk_evaluation" in analysis:
-                risk_data = analysis["risk_evaluation"]
+                risk_evaluation = analysis["risk_evaluation"]
+                if isinstance(risk_evaluation, dict) and "risk_assessment" in risk_evaluation:
+                    risk_data = risk_evaluation["risk_assessment"]
             elif "risk_assessment" in analysis:
                 risk_data = analysis["risk_assessment"]
             elif "risk_metrics" in analysis:
@@ -369,57 +354,91 @@ def display_trading_analysis(analysis_data):
         
         if risk_data:
             if isinstance(risk_data, dict):
-                # Risk metrics
-                if "risk_metrics" in risk_data:
-                    metrics = risk_data["risk_metrics"]
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.metric("Volatility", f"{metrics.get('volatility', 0):.4f}")
-                        st.metric("Market Risk", f"{metrics.get('market_risk', 0):.4f}")
-                    with col2:
-                        st.metric("Liquidity Risk", f"{metrics.get('liquidity_risk', 0):.4f}")
-                        st.metric("Credit Risk", f"{metrics.get('credit_risk', 0):.4f}")
+                # Check if this is per-asset risk assessment (new format)
+                if any(key in risk_data for key in ["BTC", "ETH", "AAPL", "MSFT"]):
+                    st.markdown("#### Per-Asset Risk Assessment")
+                    
+                    for asset, asset_risk in risk_data.items():
+                        if isinstance(asset_risk, dict):
+                            st.markdown(f"**{asset}**")
+                            
+                            # Risk metrics
+                            if "risk_metrics" in asset_risk:
+                                metrics = asset_risk["risk_metrics"]
+                                col1, col2, col3 = st.columns(3)
+                                with col1:
+                                    st.metric("Volatility", f"{metrics.get('volatility', 0):.4f}")
+                                    st.metric("VaR (95%)", f"{metrics.get('var_95', 0):.4f}")
+                                with col2:
+                                    st.metric("Sharpe Ratio", f"{metrics.get('sharpe_ratio', 0):.4f}")
+                                    st.metric("Sortino Ratio", f"{metrics.get('sortino_ratio', 0):.4f}")
+                                with col3:
+                                    st.metric("Market Correlation", f"{metrics.get('market_correlation', 0):.4f}")
+                                    st.metric("Expected Shortfall", f"{metrics.get('expected_shortfall', 0):.4f}")
+                            
+                            # Position risk
+                            if "position_risk" in asset_risk:
+                                pos_risk = asset_risk["position_risk"]
+                                st.markdown("**Position Risk:**")
+                                col1, col2, col3 = st.columns(3)
+                                with col1:
+                                    st.metric("Position Value", f"${pos_risk.get('position_value', 0):.2f}")
+                                with col2:
+                                    st.metric("Max Loss", f"${pos_risk.get('max_loss', 0):.2f}")
+                                with col3:
+                                    st.metric("Risk/Reward", f"{pos_risk.get('risk_reward_ratio', 0):.2f}")
+                            
+                            # Overall risk assessment
+                            if "risk_assessment" in asset_risk:
+                                overall = asset_risk["risk_assessment"]
+                                st.markdown("**Overall Assessment:**")
+                                col1, col2 = st.columns(2)
+                                with col1:
+                                    st.metric("Risk Score", f"{overall.get('overall_risk', 0):.4f}")
+                                with col2:
+                                    risk_level = overall.get('risk_level', 'Unknown')
+                                    color = "red" if risk_level == "high" else "orange" if risk_level == "moderate" else "green"
+                                    st.markdown(f"**Risk Level:** :{color}[{risk_level.upper()}]")
+                                
+                                # Recommendations
+                                if "recommendations" in overall:
+                                    st.markdown("**Recommendations:**")
+                                    for rec in overall["recommendations"]:
+                                        st.info(f"• {rec}")
+                            
+                            st.markdown("---")
                 
-                # Overall risk assessment
-                st.markdown("#### Overall Assessment")
-                st.markdown(f"**Risk Score:** {risk_data.get('risk_score', 'Not available')}")
-                st.markdown(f"**Risk Level:** {risk_data.get('risk_level', 'Not available')}")
-                
-                # Risk factors
-                if "risk_factors" in risk_data:
-                    st.markdown("#### Risk Factors")
-                    for i, factor in enumerate(risk_data["risk_factors"], 1):
-                        if isinstance(factor, dict):
-                            st.markdown(f"**Factor {i}:**")
-                            st.markdown(f"- Factor: {factor.get('factor', 'Not available')}")
-                            st.markdown(f"- Severity: {factor.get('severity', 'Not available')}")
-                            st.markdown(f"- Mitigation: {factor.get('mitigation', 'Not available')}")
-                        else:
-                            st.markdown(f"**Factor {i}:** {factor}")
-                        st.markdown("---")
-                
-                # Constraint violations
-                if "constraint_violations" in risk_data:
-                    violations = risk_data["constraint_violations"]
-                    if violations:
-                        st.markdown("#### Constraint Violations")
-                        for violation in violations:
-                            st.warning(f"- {violation}")
-                    else:
-                        st.success("No constraint violations detected")
+                else:
+                    # Legacy format - single risk assessment
+                    # Risk metrics
+                    if "risk_metrics" in risk_data:
+                        metrics = risk_data["risk_metrics"]
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric("Volatility", f"{metrics.get('volatility', 0):.4f}")
+                            st.metric("Market Risk", f"{metrics.get('market_risk', 0):.4f}")
+                        with col2:
+                            st.metric("Liquidity Risk", f"{metrics.get('liquidity_risk', 0):.4f}")
+                            st.metric("Credit Risk", f"{metrics.get('credit_risk', 0):.4f}")
+                    
+                    # Overall risk assessment
+                    st.markdown("#### Overall Assessment")
+                    st.markdown(f"**Risk Score:** {risk_data.get('risk_score', 'Not available')}")
+                    st.markdown(f"**Risk Level:** {risk_data.get('risk_level', 'Not available')}")
+                    
+                    # Risk recommendations
+                    if "recommendations" in risk_data:
+                        st.markdown("#### Risk Recommendations")
+                        for rec in risk_data["recommendations"]:
+                            st.info(f"• {rec}")
             else:
                 st.markdown(f"**Risk Assessment:** {risk_data}")
         else:
             st.info("No risk assessment data available")
     
     with tab4:
-        st.markdown("### Raw Analysis Data")
+        st.markdown("### Raw Data")
         st.json(analysis)
-            
-    # Display any additional information
-    if "additional_info" in analysis_data:
-        with st.expander("Additional Information"):
-            st.json(analysis_data["additional_info"])
 
 def trigger_trading_request(session_id, goals, constraints, human_trader):
     """Trigger a trading request and handle the response"""

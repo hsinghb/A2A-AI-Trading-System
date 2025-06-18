@@ -294,7 +294,8 @@ class TradingAgentOrchestrator:
                 recipient_did=risk_did,
                 message_type="risk_evaluation_request",
                 payload={
-                    "analysis": expert_response.get("analysis", {}),
+                    "trading_analysis": expert_response.get("analysis", {}),
+                    "market_conditions": expert_response.get("analysis", {}),  # Use analysis as market_conditions for now
                     "timestamp": datetime.now().isoformat(),
                     "ask_id": session_id
                 }
@@ -303,7 +304,8 @@ class TradingAgentOrchestrator:
             # Process with risk agent
             risk_response = await self.agents[risk_did].process_message({
                 "type": "risk_evaluation_request",
-                "analysis": expert_response.get("analysis", {}),
+                "trading_analysis": expert_response.get("analysis", {}),
+                "market_conditions": expert_response.get("analysis", {}),
                 "timestamp": datetime.now().isoformat(),
                 "ask_id": session_id,
                 "sender_did": self.admin_did,
